@@ -30,7 +30,7 @@ Load the sample data into your Atlas Cluster (see [Preparing The Data Demo](../L
 python load_data.py
 ```
 
-Create thhe following vector search index on the `chunked_datta` collection in your Atlas Cluster:
+Create the following vector search index on the `chunked_data` collection in your Atlas Cluster:
 
 ```bash
 {
