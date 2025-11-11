@@ -272,8 +272,10 @@ def main():
     
     app = init_graph(llm_with_tools, tools_by_name, mongodb_client)
     
-    execute_graph(app, "18", "What are some best practices for data backups in MongoDB?")
-    
-    execute_graph(app, "19", "Give me a summary of the page titled Create a MongoDB Deployment")
+    # Ask a specific question about MongoDB
+    execute_graph(app, "1", "What are some best practices for data backups in MongoDB?")
+   
+    # Test the agent's memory capabilities
+    execute_graph(app, "1", "What did I just ask?")
 
 main()

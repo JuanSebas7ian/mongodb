@@ -27,59 +27,117 @@ Each lesson builds upon the previous one, providing a gradual learning experienc
 
 ## Setup Instructions
 
-1. Configure your API keys in `key_param.py`:
+### Step 1: Navigate to the Project Directory
 
-   ```python
-   openai_api_key = "your_openai_api_key"
-   voyage_api_key = "your_voyage_api_key"
-   mongodb_uri = "your_mongodb_uri"
-   ```
+First, make sure you're in the correct directory:
 
-2. Install the `uv` package manager:
+```bash
+cd AI-Agents-with-MongoDB/01-Building-AI-Agents-with-MongoDB
+```
 
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
+### Step 2: Configure Your API Keys
 
-3. Create and initialize a `uv` environment:
+Create or edit the `key_param.py` file with your API credentials:
 
-   ```bash
-   mkdir ai-agents && cd ai-agents && \
-   uv init && uv venv && source .venv/bin/activate
-   ```
+```python
+openai_api_key = "your_openai_api_key_here"
+voyage_api_key = "your_voyage_api_key_here" 
+mongodb_uri = "your_mongodb_connection_string_here"
+```
 
-4. Install the required dependencies:
+> **Important:** Replace the placeholder values with your actual API keys and MongoDB connection string.
 
-   ```bash
-   uv add langchain==0.3.24 langchain-openai==0.3.14 langgraph==0.3.31 langgraph-checkpoint-mongodb==0.1.3 pymongo==4.11.3 voyageai==0.3.2
-   ```
+### Step 3: Install the `uv` Package Manager
 
-> [!NOTE]
-> This project uses the [`uv`](https://docs.astral.sh/uv/) package manager. If you prefer `pip` or `pipenv`, you'll need to adapt the installation commands.
+**Windows (PowerShell - run as Administrator if needed):**
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-## Loading the Dataset
+**macOS/Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
-Before using the agent, you must load the MongoDB documentation data into your database:
+**Verify installation:**
+```bash
+uv --version
+```
+
+### Step 4: Set Up Python Environment
+
+**Initialize the project (run these commands one by one):**
+
+**Windows (PowerShell):**
+```powershell
+# Initialize uv project
+uv init
+
+# Create virtual environment
+uv venv
+
+# Activate the environment
+.venv\Scripts\activate
+```
+
+**macOS/Linux:**
+```bash
+# Initialize uv project  
+uv init
+
+# Create virtual environment
+uv venv
+
+# Activate the environment
+source .venv/bin/activate
+```
+
+**Verify your environment is active:** You should see `(.venv)` in your terminal prompt.
+
+### Step 5: Install Dependencies
+
+Install all required packages:
+
+```bash
+uv add langchain==0.3.24 langchain-openai==0.3.14 langgraph==0.3.31 langgraph-checkpoint-mongodb==0.1.3 pymongo==4.11.3 voyageai==0.3.2 datasets
+```
+
+**Verify installation:**
+```bash
+uv pip list
+```
+
+### Step 6: Load the Dataset (Required Before First Run)
+
+**Important:** You must load the MongoDB documentation data before running the agent:
 
 ```bash
 uv run data.py
 ```
 
-This script loads two Hugging Face datasets, [`mongodb-docs`](https://huggingface.co/datasets/MongoDB/mongodb-docs) (full docs) and [`mongodb-docs-embedded`](https://huggingface.co/datasets/MongoDB/mongodb-docs-embedded) (chunked docs), into your MongoDB instance. Full documents go into `full_docs`; chunked docs are embedded via VoyageAI ([`voyage-3-lite`](https://blog.voyageai.com/2024/09/18/voyage-3/)) and saved to `chunked_docs`. Finally, it creates a [`vector_index`](https://github.com/mongodb-university/curriculum/blob/main/AI-Agents-with-MongoDB/01-Building-AI-Agents-with-MongoDB/data.py#L41-L54) on the `embedding` field for semantic search. See [Attribution](#attribution) for more information.
+This step will:
+- Download MongoDB documentation datasets from Hugging Face
+- Generate embeddings using VoyageAI
+- Store data in your MongoDB database
+- Create a vector search index
+
+> **Note:** This process may take several minutes depending on your internet connection and the size of the dataset.
 
 ## Running the Agent
 
-1. In main.py, customize the queries for your agent. Examples:
+### Step 7: Customize and Run the Agent
+
+1. **Optional:** Customize the queries in `main.py`. Examples:
 
    ```python
    # Ask a specific question about MongoDB
    execute_graph(app, "1", "What are some best practices for data backups in MongoDB?")
    
-   # Test the agent's memory capabilities
+   # Test the agent's memory capabilities  
    execute_graph(app, "1", "What did I just ask?")
    ```
 
-2. Run the agent:
+2. **Run the agent:**
 
    ```bash
    uv run main.py
@@ -87,11 +145,47 @@ This script loads two Hugging Face datasets, [`mongodb-docs`](https://huggingfac
 
 ## Troubleshooting
 
-If you encounter any issues, ensure that:
+### Common Issues and Solutions
 
-- Your API keys are correctly set in `key_param.py`
-- Your MongoDB Atlas cluster is accessible from your IP address
-- You've loaded the data using `data.py` before running the agent
+**Problem: `ModuleNotFoundError: No module named 'datasets'`**
+- **Solution:** Make sure you installed all dependencies including `datasets`: 
+  ```bash
+  uv add datasets
+  ```
+
+**Problem: `sh : The term 'sh' is not recognized` (Windows)**
+- **Solution:** Use the PowerShell installation command instead:
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
+
+**Problem: `No pyproject.toml found in current directory`**
+- **Solution:** Make sure you're in the correct directory and run `uv init` first:
+  ```bash
+  cd AI-Agents-with-MongoDB/01-Building-AI-Agents-with-MongoDB
+  uv init
+  ```
+
+**Problem: API key errors**
+- **Solution:** Verify your API keys are correctly set in `key_param.py`:
+  - OpenAI API key: Get from [OpenAI Platform](https://platform.openai.com/account/api-keys)
+  - VoyageAI API key: Get from [VoyageAI](https://docs.voyageai.com/docs/api-key-and-installation)
+  - MongoDB URI: Get from your MongoDB Atlas cluster
+
+**Problem: MongoDB connection issues**
+- **Solution:** 
+  - Ensure your MongoDB Atlas cluster is accessible from your IP address
+  - Check that your connection string includes the correct username/password
+  - Verify your cluster is running and network access is configured
+
+**Problem: Data loading takes too long or fails**
+- **Solution:**
+  - Ensure stable internet connection for downloading datasets
+  - Check that your Atlas cluster has sufficient storage space
+  - Verify VoyageAI API key is valid and has sufficient quota
+
+> [!NOTE]
+> This project uses the [`uv`](https://docs.astral.sh/uv/) package manager. If you prefer `pip` or `pipenv`, you'll need to adapt the installation commands.
 
 ## Attribution
 
