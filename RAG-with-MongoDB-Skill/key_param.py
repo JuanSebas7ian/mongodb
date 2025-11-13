@@ -1,0 +1,3 @@
+LLM_API_KEY="your_openai_api_key_here"
+VOYAGE_API_KEY="your_voyage_api_key_here"
+MONGODB_URI="your_mongodb_connection_string_here"
