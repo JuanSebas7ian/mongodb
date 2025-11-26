@@ -1,6 +1,6 @@
 langchain==0.3.27
 langchain_community==0.3.30
-langchain_core==0.3.78
+langchain_core==0.3.80
 langchain_mongodb==0.7.0
 pymongo==4.15.2
 langchain-voyageai==0.1.3
