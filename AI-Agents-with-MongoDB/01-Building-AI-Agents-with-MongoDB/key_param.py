@@ -1,3 +1,13 @@
-openai_api_key = "your_openai_api_key_here"
-voyage_api_key = "your_voyage_api_key_here" 
-mongodb_uri = "your_mongodb_connection_string_here"
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
+voyage_api_key = os.getenv("VOYAGE_API_KEY")
+mongodb_uri = os.getenv("MONGODB_URI")
+
+# AWS Credentials
+aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+aws_default_region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")

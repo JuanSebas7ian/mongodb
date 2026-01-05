@@ -1,59 +1,162 @@
-import key_param
-from pymongo import MongoClient
-from langchain.agents import tool
-from typing import List
-from typing import Annotated
-from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
-from typing_extensions import TypedDict
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import ToolMessage
-from langgraph.graph import END, StateGraph, START
-import voyageai
+import sys
+import os
 
-def init_mongodb():
+# Add the parent directory (project root) to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
+import key_param # Importa módulo de claves.
+from pymongo import MongoClient # Cliente MongoDB.
+# from langchain.agents import tool
+from langchain_core.tools import tool # Decorador de herramientas.
+from typing import List # Tipado List.
+from typing import Annotated # Tipado Annotated.
+from langgraph.graph.message import add_messages # Reducer para mensajes LangGraph.
+# from langchain_openai import ChatOpenAI # (Comentado) OpenAI.
+from typing_extensions import TypedDict # TypedDict para estado.
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder # Templates de prompt.
+from langchain_core.messages import ToolMessage # Mensajes de herramienta.
+from langgraph.graph import END, StateGraph, START # Constantes y clases LangGraph.
+# import voyageai # (Comentado) VoyageAI.
+import os, getpass # Utils OS.
+from langchain_aws import ChatBedrock # AWS Bedrock.
+import boto3 # Boto3.
+import json # JSON.
+
+def _set_env(var: str): # Función set_env.
+    if not os.environ.get(var): # Verifica.
+        os.environ[var] = getpass.getpass(f"{var}: ") # Solicita.
+
+# 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo) # Config DeepSeek.
+# Ideal para agentes que necesitan planificar pasos lógicos. # Descripción.
+llm_ds = ChatBedrock( # Instancia ChatBedrock.
+    model_id="us.deepseek.r1-v1:0",  # ID oficial validado # ID.
+    region_name="us-east-1", # Región.
+    model_kwargs={ # Args.
+        "temperature": 0.6, # DeepSeek recomienda 0.6 para razonamiento # Temp.
+        "max_tokens": 8192,  # Recomendado para no degradar calidad del CoT # Tokens.
+        "top_p": 0.95, # Top P.
+    } # Fin kwargs.
+) # Fin instancia.
+
+
+# llm = ChatBedrock( # (Comentado) Config DeepSeek V3.
+#     model_id="us.deepseek.v3-v1:0", # Prueba este primero # (Comentado) ID.
+#     region_name="us-east-1",        # O us-west-2 # (Comentado) Región.
+#     model_kwargs={ # (Comentado) Args.
+#         "temperature": 0.7, # (Comentado) Temp.
+#         "max_tokens": 4096 # (Comentado) Tokens.
+#     } # (Comentado) Fin kwargs.
+# ) # (Comentado) Fin instancia.
+
+llm_llama = ChatBedrock( # Instancia Llama 4.
+    model_id="us.meta.llama4-scout-17b-instruct-v1:0",  # Nota el prefijo "us." # ID.
+    # model_id="cohere.command-r-plus-v1:0", # (Comentado) Cohere.
+    region_name="us-east-1", # Región.
+    model_kwargs={ # Args.
+        "temperature": 0.5, # Temp.
+        "max_tokens": 2048, # Tokens.
+        "top_p": 0.9, # Top P.
+    } # Fin kwargs.
+) # Fin instancia.
+
+
+# llm = ChatBedrock( # (Comentado) Config Llama 4 Maverick.
+#     model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # (Comentado) ID.
+#     region_name="us-east-1", # (Comentado) Región.
+#     model_kwargs={ # (Comentado) Args.
+#         "temperature": 0.5, # (Comentado) Temp.
+#         "max_tokens": 2048, # (Comentado) Tokens.
+#         "top_p": 0.9, # (Comentado) Top P.
+#     } # (Comentado) Fin kwargs.
+# ) # (Comentado) Fin instancia.
+
+llm_nova = ChatBedrock( # Instancia Nova Lite.
+    model_id="amazon.nova-lite-v1:0",  # Nota el prefijo "us." # ID.
+    region_name="us-east-1", # Región.
+    model_kwargs={ # Args.
+        "temperature": 0.5, # Temp.
+        "max_tokens": 2048, # Tokens.
+        "top_p": 0.9, # Top P.
+    } # Fin kwargs.
+) # Fin instancia.
+
+def init_mongodb(): # Función inicialización Mongo.
     """
     Initialize MongoDB client and collections.
 
     Returns:
         tuple: MongoDB client, vector search collection, full documents collection.
+    """ # Docstring.
+    mongodb_client = MongoClient(key_param.mongodb_uri) # Cliente.
+    
+    DB_NAME = "ai_agents" # Nombre DB.
+    
+    vs_collection = mongodb_client[DB_NAME]["chunked_docs"] # Colección vectores.
+    
+    full_collection = mongodb_client[DB_NAME]["full_docs"] # Colección docs.
+    
+    return mongodb_client, vs_collection, full_collection # Retorna.
+
+# Define the graph state type with messages that can accumulate # Define Estado Grafo.
+class GraphState(TypedDict): # Clase TypedDict.
+    # Define a messages field that keeps track of conversation history # Campo mensajes.
+    messages: Annotated[list, add_messages] # Lista anotada con reducer.
+    
+# def generate_embedding(text: str) -> List[float]: # (Comentado) Embedding Voyage.
+#     """
+#     Generate embedding for a piece of text.
+
+#     Args:
+#         text (str): The text to embed.
+#         embedding_model (voyage-3-lite): The embedding model.
+
+#     Returns:
+#         List[float]: The embedding of the text.
+#     """
+
+#     embedding_model = voyageai.Client(api_key=key_param.voyage_api_key) # (Comentado) Cliente.
+
+#     embedding = embedding_model.embed(text, model="voyage-3-lite", input_type="query").embeddings[0] # (Comentado) Embed.
+    
+#     return embedding # (Comentado) Retorno.
+
+
+def generate_embedding(text: str) -> List[float]: # Embedding Titan.
     """
-    mongodb_client = MongoClient(key_param.mongodb_uri)
+    Generate embedding for a piece of text using AWS Titan.
+    """ # Docstring.
+    # 1. Crear el cliente de Bedrock Runtime # Paso 1.
+    # Asegúrate de tener tus credenciales de AWS configuradas en el entorno # Nota.
+    bedrock_runtime = boto3.client( # Cliente boto3.
+        service_name="bedrock-runtime", # Servicio.
+        region_name="us-east-1"  # O tu región preferida (ej. us-west-2) # Región.
+    ) # Fin cliente.
+
+    # 2. Preparar el payload para Titan v2 # Paso 2.
+    # Titan v2 soporta 'inputText' y parámetros adicionales como 'dimensions' o 'normalize' # Nota.
+    body = json.dumps({ # JSON body.
+        "inputText": text, # Input.
+        "dimensions": 1024,  # Titan v2 permite 256, 512 o 1024. 1024 es el estándar para alta calidad. # Dimensiones.
+        "normalize": True # Normalizar.
+    }) # Fin body.
+
+    # 3. Invocar al modelo # Paso 3.
+    response = bedrock_runtime.invoke_model( # Invocación.
+        modelId="amazon.titan-embed-text-v2:0", # ID Modelo.
+        contentType="application/json", # Content Type.
+        accept="application/json", # Accept.
+        body=body # Body.
+    ) # Fin respuesta.
+
+    # 4. Procesar la respuesta # Paso 4.
+    response_body = json.loads(response.get("body").read()) # Parsea.
+    embedding = response_body.get("embedding") # Extrae.
     
-    DB_NAME = "ai_agents"
-    
-    vs_collection = mongodb_client[DB_NAME]["chunked_docs"]
-    
-    full_collection = mongodb_client[DB_NAME]["full_docs"]
-    
-    return mongodb_client, vs_collection, full_collection
-
-# Define the graph state type with messages that can accumulate
-class GraphState(TypedDict):
-    # Define a messages field that keeps track of conversation history
-    messages: Annotated[list, add_messages]
-    
-def generate_embedding(text: str) -> List[float]:
-    """
-    Generate embedding for a piece of text.
-
-    Args:
-        text (str): The text to embed.
-        embedding_model (voyage-3-lite): The embedding model.
-
-    Returns:
-        List[float]: The embedding of the text.
-    """
-
-    embedding_model = voyageai.Client(api_key=key_param.voyage_api_key)
-
-    embedding = embedding_model.embed(text, model="voyage-3-lite", input_type="query").embeddings[0]
-    
-    return embedding
+    return embedding # Retorna.
 
 
-@tool 
-def get_information_for_question_answering(user_query: str) -> str:
+@tool # Tool QA.
+def get_information_for_question_answering(user_query: str) -> str: # Función.
     """
     Retrieve relevant documents for a user query using vector search.
 
@@ -62,41 +165,41 @@ def get_information_for_question_answering(user_query: str) -> str:
 
     Returns:
         str: The retrieved documents as a string.
-    """
+    """ # Docstring.
 
-    query_embedding = generate_embedding(user_query)
+    query_embedding = generate_embedding(user_query) # Genera embedding.
 
-    vs_collection = init_mongodb()[1]
+    vs_collection = init_mongodb()[1] # Colección vectores.
     
-    pipeline = [
-        {
-            # Use vector search to find similar documents
-            "$vectorSearch": {
-                "index": "vector_index",  # Name of the vector index
-                "path": "embedding",       # Field containing the embeddings
-                "queryVector": query_embedding,  # The query embedding to compare against
-                "numCandidates": 150,      # Consider 150 candidates (wider search)
-                "limit": 5,                # Return only top 5 matches
-            }
-        },
-        {
-            # Project only the fields we need
-            "$project": {
-                "_id": 0,                  # Exclude document ID
-                "body": 1,                 # Include the document body
-                "score": {"$meta": "vectorSearchScore"},  # Include the similarity score
-            }
-        },
-    ]
+    pipeline = [ # Pipeline.
+        { # Paso vectorSearch.
+            # Use vector search to find similar documents # Comentario.
+            "$vectorSearch": { # Operador.
+                "index": "vector_index",  # Name of the vector index # Índice.
+                "path": "embedding",       # Field containing the embeddings # Campo.
+                "queryVector": query_embedding,  # The query embedding to compare against # Vector.
+                "numCandidates": 150,      # Consider 150 candidates (wider search) # Candidatos.
+                "limit": 5,                # Return only top 5 matches # Límite.
+            } # Fin operador.
+        }, # Fin paso.
+        { # Paso project.
+            # Project only the fields we need # Comentario.
+            "$project": { # Proyección.
+                "_id": 0,                  # Exclude document ID # Sin ID.
+                "body": 1,                 # Include the document body # Con body.
+                "score": {"$meta": "vectorSearchScore"},  # Include the similarity score # Con score.
+            } # Fin proyección.
+        }, # Fin paso.
+    ] # Fin pipeline.
     
-    results = vs_collection.aggregate(pipeline)
+    results = vs_collection.aggregate(pipeline) # Ejecuta.
     
-    context = "\n\n".join([doc.get("body") for doc in results])
+    context = "\n\n".join([doc.get("body") for doc in results]) # Contexto.
     
-    return context
+    return context # Retorna.
 
-@tool  # Decorator marks this function as a tool the agent can use
-def get_page_content_for_summarization(user_query: str) -> str:
+@tool  # Decorator marks this function as a tool the agent can use # Tool Resumen.
+def get_page_content_for_summarization(user_query: str) -> str: # Función.
     """
     Retrieve the content of a documentation page for summarization.
 
@@ -105,21 +208,21 @@ def get_page_content_for_summarization(user_query: str) -> str:
 
     Returns:
         str: The content of the documentation page.
-    """
-    full_collection = init_mongodb()[2]
+    """ # Docstring.
+    full_collection = init_mongodb()[2] # Colección docs.
 
-    query = {"title": user_query}
+    query = {"title": user_query} # Query.
     
-    projection = {"_id": 0, "body": 1}
+    projection = {"_id": 0, "body": 1} # Proyección.
     
-    document = full_collection.find_one(query, projection)
+    document = full_collection.find_one(query, projection) # Busca.
     
-    if document:
-        return document["body"]
-    else:
-        return "Document not found"
+    if document: # Si existe.
+        return document["body"] # Retorna.
+    else: # Si no.
+        return "Document not found" # Error.
 
-def agent(state: GraphState, llm_with_tools) -> GraphState:
+def agent(state: GraphState, llm_with_tools) -> GraphState: # Nodo Agente.
     """
     Agent node.
 
@@ -129,15 +232,15 @@ def agent(state: GraphState, llm_with_tools) -> GraphState:
 
     Returns:
         GraphState: The updated messages.
-    """
+    """ # Docstring.
 
-    messages = state["messages"]
+    messages = state["messages"] # Obtiene mensajes.
     
-    result = llm_with_tools.invoke(messages)
+    result = llm_with_tools.invoke(messages) # Invoca LLM.
     
-    return {"messages": [result]}
+    return {"messages": [result]} # Retorna actualización.
 
-def tool_node(state: GraphState, tools_by_name) -> GraphState:
+def tool_node(state: GraphState, tools_by_name) -> GraphState: # Nodo Herramientas.
     """
     Tool node.
 
@@ -147,21 +250,21 @@ def tool_node(state: GraphState, tools_by_name) -> GraphState:
 
     Returns:
         GraphState: The updated messages.
-    """
-    result = []
+    """ # Docstring.
+    result = [] # Lista resultados.
     
-    tool_calls = state["messages"][-1].tool_calls
+    tool_calls = state["messages"][-1].tool_calls # Obtiene llamadas a herramientas.
     
-    for tool_call in tool_calls:
-        tool = tools_by_name[tool_call["name"]]
+    for tool_call in tool_calls: # Itera llamadas.
+        tool = tools_by_name[tool_call["name"]] # Obtiene herramienta por nombre.
         
-        observation = tool.invoke(tool_call["args"])
+        observation = tool.invoke(tool_call["args"]) # Invoca herramienta.
         
-        result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"]))
+        result.append(ToolMessage(content=observation, tool_call_id=tool_call["id"])) # Agrega mensaje herramienta con resultado.
     
-    return {"messages": result}
+    return {"messages": result} # Retorna mensajes.
 
-def route_tools(state: GraphState):
+def route_tools(state: GraphState): # Función enrutamiento.
     """
     Route to the tool node if the last message has tool calls. Otherwise, route to the end.
 
@@ -170,20 +273,20 @@ def route_tools(state: GraphState):
 
     Returns:
         str: The next node to route to.
-    """
-    messages = state.get("messages", [])
+    """ # Docstring.
+    messages = state.get("messages", []) # Obtiene mensajes.
     
-    if len(messages) > 0:
-        ai_message = messages[-1]
-    else:
-        raise ValueError(f"No messages found in input state to tool_edge: {state}")
+    if len(messages) > 0: # Si hay mensajes.
+        ai_message = messages[-1] # Último mensaje.
+    else: # Si no.
+        raise ValueError(f"No messages found in input state to tool_edge: {state}") # Error.
     
-    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0:
-        return "tools"
+    if hasattr(ai_message, "tool_calls") and len(ai_message.tool_calls) > 0: # Si hay tool_calls.
+        return "tools" # Ruta a herramientas.
     
-    return END
+    return END # Ruta a fin.
 
-def init_graph(llm_with_tools, tools_by_name):
+def init_graph(llm_with_tools, tools_by_name): # Función inicialización grafo.
     """
     Initialize the graph.
 
@@ -194,22 +297,22 @@ def init_graph(llm_with_tools, tools_by_name):
 
     Returns:
         StateGraph: The compiled graph.
-    """
-    graph = StateGraph(GraphState)
+    """ # Docstring.
+    graph = StateGraph(GraphState) # Instancia grafo.
     
-    graph.add_node("agent", lambda state: agent(state, llm_with_tools))
+    graph.add_node("agent", lambda state: agent(state, llm_with_tools)) # Nodo agente.
     
-    graph.add_node("tools", lambda state: tool_node(state, tools_by_name))
+    graph.add_node("tools", lambda state: tool_node(state, tools_by_name)) # Nodo herramientas.
     
-    graph.add_edge(START, "agent")
+    graph.add_edge(START, "agent") # Arista inicio -> agente.
     
-    graph.add_edge("tools", "agent")
+    graph.add_edge("tools", "agent") # Arista herramientas -> agente.
     
-    graph.add_conditional_edges("agent", route_tools, {"tools": "tools", END: END})
+    graph.add_conditional_edges("agent", route_tools, {"tools": "tools", END: END}) # Aristas condicionales.
     
-    return graph.compile()
+    return graph.compile() # Compila y retorna.
 
-def execute_graph(app, user_input: str) -> None:
+def execute_graph(app, user_input: str) -> None: # Función ejecución grafo.
     """
     Stream outputs from the graph.
 
@@ -217,58 +320,60 @@ def execute_graph(app, user_input: str) -> None:
         app: The compiled graph application.
         thread_id (str): The thread ID.
         user_input (str): The user's input.
-    """
-    input = {"messages": [("user", user_input)]}
+    """ # Docstring.
+    input = {"messages": [("user", user_input)]} # Input grafo.
 
     
-    for output in app.stream(input):
-        for key, value in output.items():
-            print(f"Node {key}:")
-            print(value)
+    for output in app.stream(input): # Itera stream salida.
+        for key, value in output.items(): # Itera items salida.
+            print(f"Node {key}:") # Imprime nodo.
+            print(value) # Imprime valor.
     
-    print("---FINAL ANSWER---")
+    print("---FINAL ANSWER---") # Imprime separador.
     
-    print(value["messages"][-1].content)
+    print(value["messages"][-1].content) # Imprime respuesta final.
 
-def main():
+def main(): # Función main.
     """
     Main function to initialize and execute the graph.
-    """
-    mongodb_client, vs_collection, full_collection = init_mongodb()
+    """ # Docstring.
+    mongodb_client, vs_collection, full_collection = init_mongodb() # Inicializa Mongo.
     
-    tools = [
-        get_information_for_question_answering,
-        get_page_content_for_summarization
-    ]
+    tools = [ # Lista herramientas.
+        get_information_for_question_answering, # QA.
+        get_page_content_for_summarization # Resumen.
+    ] # Fin lista.
     
-    llm = ChatOpenAI(openai_api_key=key_param.openai_api_key, temperature=0, model="gpt-4o")
+    # llm = ChatOpenAI(openai_api_key=key_param.openai_api_key, temperature=0, model="gpt-4o") # (Comentado) LLM.
+    llm = llm_nova # Asignación LLM seleccionado (usando llm_nova como default).
+
+    prompt = ChatPromptTemplate.from_messages( # Plantilla prompt.
+        [ # Mensajes.
+            ( # Mensaje sistema.
+                "system", # Rol.
+                "You are a helpful AI assistant." # Rol.
+                " You are provided with tools to answer questions and summarize technical documentation related to MongoDB." # Propósito.
+                " Think step-by-step and use these tools to get the information required to answer the user query." # Instrucción.
+                " Do not re-run tools unless absolutely necessary." # Restricción.
+                " If you are not able to get enough information using the tools, reply with I DON'T KNOW." # Fallback.
+                " You have access to the following tools: {tool_names}." # Info tools.
+            ), # Fin mensaje.
+            MessagesPlaceholder(variable_name="messages"), # Placeholder.
+        ] # Fin lista.
+    ) # Fin plantilla.
     
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "You are a helpful AI assistant."
-                " You are provided with tools to answer questions and summarize technical documentation related to MongoDB."
-                " Think step-by-step and use these tools to get the information required to answer the user query."
-                " Do not re-run tools unless absolutely necessary."
-                " If you are not able to get enough information using the tools, reply with I DON'T KNOW."
-                " You have access to the following tools: {tool_names}."
-            ),
-            MessagesPlaceholder(variable_name="messages"),
-        ]
-    )
+    prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools])) # Tool names.
     
-    prompt = prompt.partial(tool_names=", ".join([tool.name for tool in tools]))
+    bind_tools = llm.bind_tools(tools) # Bind tools.
     
-    bind_tools = llm.bind_tools(tools)
+    llm_with_tools = prompt | bind_tools # Cadena.
     
-    llm_with_tools = prompt | bind_tools
+    tools_by_name = {tool.name: tool for tool in tools} # Diccionario herramientas.
     
-    tools_by_name = {tool.name: tool for tool in tools}
+    app = init_graph(llm_with_tools, tools_by_name) # Inicializa grafo.
     
-    app = init_graph(llm_with_tools, tools_by_name)
+    execute_graph(app, "What are some best practices for data backups in MongoDB?") # Ejecución 1.
     
-    execute_graph(app, "What are some best practices for data backups in MongoDB?")
+    execute_graph(app, "Give me a summary of the page titled Create a MongoDB Deployment") # Ejecución 2.
     
-    execute_graph(app, "Give me a summary of the page titled Create a MongoDB Deployment")
-    
-main()
+main() # Ejecuta main.
