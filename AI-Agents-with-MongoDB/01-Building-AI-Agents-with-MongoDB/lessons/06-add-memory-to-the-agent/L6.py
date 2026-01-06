@@ -19,7 +19,7 @@ from langgraph.graph import END, StateGraph, START # Grafo.
 from langgraph.checkpoint.mongodb import MongoDBSaver # Checkpointer MongoDB.
 # import voyageai # (Comentado) Voyage.
 import os, getpass # OS utils.
-from langchain_aws import ChatBedrock # Bedrock.
+from langchain_aws import ChatBedrockConverse # Bedrock.
 import boto3 # Boto3.
 import json # JSON.
 
@@ -29,57 +29,46 @@ def _set_env(var: str): # Función set env.
 
 # 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo) # DeepSeek Config.
 # Ideal para agentes que necesitan planificar pasos lógicos. # Desc.
-llm_ds = ChatBedrock( # Instancia.
-    model_id="us.deepseek.r1-v1:0",  # ID oficial validado # ID.
-    region_name="us-east-1", # Región.
-    model_kwargs={ # Args.
-        "temperature": 0.6, # DeepSeek recomienda 0.6 para razonamiento # Temp.
-        "max_tokens": 8192,  # Recomendado para no degradar calidad del CoT # Tokens.
-        "top_p": 0.95, # Top P.
-    } # Kwargs.
-) # Fin.
+llm_ds = ChatBedrockConverse(
+    model_id="us.deepseek.r1-v1:0",  # ID oficial validado
+    region_name="us-east-1",
+    temperature=0.6,
+    max_tokens=8192,
+    top_p=0.95
+)
 
 
-# llm = ChatBedrock( # (Comentado) DeepSeek V3.
+# llm = ChatBedrockConverse( # (Comentado) DeepSeek V3.
 #     model_id="us.deepseek.v3-v1:0", # Prueba este primero # (Comentado) ID.
 #     region_name="us-east-1",        # O us-west-2 # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Args.
-#         "temperature": 0.7, # (Comentado) Temp.
-#         "max_tokens": 4096 # (Comentado) Tokens.
-#     } # (Comentado) Kwargs.
+#     temperature=0.7,
+#     max_tokens=4096
 # ) # (Comentado) Fin.
 
-llm_llama = ChatBedrock( # Instancia Llama 4.
-    model_id="us.meta.llama4-scout-17b-instruct-v1:0",  # Nota el prefijo "us." # ID.
-    # model_id="cohere.command-r-plus-v1:0", # (Comentado) Cohere.
-    region_name="us-east-1", # Región.
-    model_kwargs={ # Args.
-        "temperature": 0.5, # Temp.
-        "max_tokens": 2048, # Tokens.
-        "top_p": 0.9, # Top P.
-    } # Kwargs.
-) # Fin.
+llm_llama = ChatBedrockConverse(
+    model_id="us.meta.llama4-scout-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.1,
+    max_tokens=2048,
+    top_p=0.9
+)
 
 
-# llm = ChatBedrock( # (Comentado) Llama Maverick.
+# llm = ChatBedrockConverse( # (Comentado) Llama Maverick.
 #     model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # (Comentado) ID.
 #     region_name="us-east-1", # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Args.
-#         "temperature": 0.5, # (Comentado) Temp.
-#         "max_tokens": 2048, # (Comentado) Tokens.
-#         "top_p": 0.9, # (Comentado) Top P.
-#     } # (Comentado) Kwargs.
+#     temperature=0.5,
+#     max_tokens=2048,
+#     top_p=0.9
 # ) # (Comentado) Fin.
 
-llm_nova = ChatBedrock( # Instancia Nova.
-    model_id="amazon.nova-lite-v1:0",  # Nota el prefijo "us." # ID.
-    region_name="us-east-1", # Región.
-    model_kwargs={ # Args.
-        "temperature": 0.5, # Temp.
-        "max_tokens": 2048, # Tokens.
-        "top_p": 0.9, # Top P.
-    } # Kwargs.
-) # Fin.
+llm_nova = ChatBedrockConverse(
+    model_id="amazon.nova-lite-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9
+)
 
 def init_mongodb(): # Inicializa Mongo.
     """

@@ -12,7 +12,7 @@ from typing import List # Importa List para el tipado de listas en Python.
 # from langchain_openai import ChatOpenAI # (Comentado) Importa ChatOpenAI de langchain_openai.
 # import voyageai # (Comentado) Importa la librería voyageai para embeddings.
 import os, getpass # Importa os para sistema y getpass para contraseñas seguras.
-from langchain_aws import ChatBedrock # Importa ChatBedrock para usar modelos de AWS Bedrock.
+from langchain_aws import ChatBedrockConverse # Importa ChatBedrockConverse para usar modelos de AWS Bedrock.
 
 def _set_env(var: str): # Función para configurar variables de entorno si no existen.
     if not os.environ.get(var): # Comprueba si la variable de entorno 'var' no existe.
@@ -20,56 +20,46 @@ def _set_env(var: str): # Función para configurar variables de entorno si no ex
 
 # 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo) # Configuración del modelo DeepSeek-R1.
 # Ideal para agentes que necesitan planificar pasos lógicos. # Descripción del uso del modelo.
-llm_ds = ChatBedrock( # Inicialización del cliente ChatBedrock para DeepSeek.
-    model_id="us.deepseek.r1-v1:0",  # ID oficial validado # ID del modelo DeepSeek R1 en Bedrock.
-    region_name="us-east-1", # Región de AWS.
-    model_kwargs={ # Parámetros adicionales del modelo.
-        "temperature": 0.6, # DeepSeek recomienda 0.6 para razonamiento # Temperatura recomendada.
-        "max_tokens": 8192,  # Recomendado para no degradar calidad del CoT # Límite de tokens para Chain of Thought.
-        "top_p": 0.95, # Parámetro Top-P.
-    } # Fin de kwargs.
-) # Fin de inicialización de llm_ds.
+llm_ds = ChatBedrockConverse(
+    model_id="us.deepseek.r1-v1:0",  # ID oficial validado
+    region_name="us-east-1",
+    temperature=0.6,
+    max_tokens=8192,
+    top_p=0.95
+)
 
 
-# llm = ChatBedrock( # (Comentado) Configuración alternativa para DeepSeek V3.
+# llm = ChatBedrockConverse( # (Comentado) Configuración alternativa para DeepSeek V3.
 #     model_id="us.deepseek.v3-v1:0", # Prueba este primero # (Comentado) ID del modelo.
 #     region_name="us-east-1",        # O us-west-2 # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Argumentos del modelo.
-#         "temperature": 0.7, # (Comentado) Temperatura.
-#         "max_tokens": 4096 # (Comentado) Tokens máximos.
-#     } # (Comentado) Fin kwargs.
+#     temperature=0.7,
+#     max_tokens=4096
 # ) # (Comentado) Fin llm.
 
-llm_llama = ChatBedrock( # Inicialización de ChatBedrock para Llama 4.
-    model_id="us.meta.llama4-scout-17b-instruct-v1:0",  # Nota el prefijo "us." # ID del modelo Llama 4 Scout.
-    region_name="us-east-1", # Región de AWS.
-    model_kwargs={ # Argumentos adicionales.
-        "temperature": 0.5, # Temperatura para el modelo.
-        "max_tokens": 2048, # Tokens máximos de respuesta.
-        "top_p": 0.9, # Parámetro Top-P.
-    } # Fin kwargs.
-) # Fin inicialización llm_llama.
+llm_llama = ChatBedrockConverse(
+    model_id="us.meta.llama4-scout-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.1,
+    max_tokens=2048,
+    top_p=0.9
+)
 
 
-# llm = ChatBedrock( # (Comentado) Configuración alternativa para Llama 4 Maverick.
+# llm = ChatBedrockConverse( # (Comentado) Configuración alternativa para Llama 4 Maverick.
 #     model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # (Comentado) ID del modelo.
 #     region_name="us-east-1", # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Argumentos.
-#         "temperature": 0.5, # (Comentado) Temperatura.
-#         "max_tokens": 2048, # (Comentado) Tokens.
-#         "top_p": 0.9, # (Comentado) Top-P.
-#     } # (Comentado) Fin kwargs.
+#     temperature=0.5,
+#     max_tokens=2048,
+#     top_p=0.9
 # ) # (Comentado) Fin llm.
 
-llm_nova = ChatBedrock( # Inicialización de ChatBedrock para Amazon Nova Lite.
-    model_id="amazon.nova-lite-v1:0",  # Nota el prefijo "us." # ID del modelo Nova Lite.
-    region_name="us-east-1", # Región de AWS.
-    model_kwargs={ # Argumentos adicionales.
-        "temperature": 0.5, # Temperatura.
-        "max_tokens": 2048, # Tokens máximos.
-        "top_p": 0.9, # Top-P.
-    } # Fin kwargs.
-) # Fin inicialización llm_nova.
+llm_nova = ChatBedrockConverse(
+    model_id="amazon.nova-lite-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9
+)
 
 import json # Importa el módulo json para manejar datos JSON.
 import boto3 # Importa la librería boto3 para interactuar con servicios de AWS.

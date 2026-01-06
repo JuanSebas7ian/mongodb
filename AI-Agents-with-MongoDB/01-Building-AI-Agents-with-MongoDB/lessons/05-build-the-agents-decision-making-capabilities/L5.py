@@ -8,7 +8,7 @@ import key_param # Importa módulo de claves.
 from pymongo import MongoClient # Cliente MongoDB.
 # from langchain.agents import tool
 from langchain_core.tools import tool # Decorador de herramientas.
-from typing import List # Tipado List.
+from typing import List, Dict # Tipado List.
 from typing import Annotated # Tipado Annotated.
 from langgraph.graph.message import add_messages # Reducer para mensajes LangGraph.
 # from langchain_openai import ChatOpenAI # (Comentado) OpenAI.
@@ -18,7 +18,7 @@ from langchain_core.messages import ToolMessage # Mensajes de herramienta.
 from langgraph.graph import END, StateGraph, START # Constantes y clases LangGraph.
 # import voyageai # (Comentado) VoyageAI.
 import os, getpass # Utils OS.
-from langchain_aws import ChatBedrock # AWS Bedrock.
+from langchain_aws import ChatBedrockConverse # AWS Bedrock.
 import boto3 # Boto3.
 import json # JSON.
 
@@ -28,57 +28,46 @@ def _set_env(var: str): # Función set_env.
 
 # 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo) # Config DeepSeek.
 # Ideal para agentes que necesitan planificar pasos lógicos. # Descripción.
-llm_ds = ChatBedrock( # Instancia ChatBedrock.
-    model_id="us.deepseek.r1-v1:0",  # ID oficial validado # ID.
-    region_name="us-east-1", # Región.
-    model_kwargs={ # Args.
-        "temperature": 0.6, # DeepSeek recomienda 0.6 para razonamiento # Temp.
-        "max_tokens": 8192,  # Recomendado para no degradar calidad del CoT # Tokens.
-        "top_p": 0.95, # Top P.
-    } # Fin kwargs.
-) # Fin instancia.
+llm_ds = ChatBedrockConverse(
+    model_id="us.deepseek.r1-v1:0",  # ID oficial validado
+    region_name="us-east-1",
+    temperature=0.6,
+    max_tokens=8192,
+    top_p=0.95
+)
 
 
-# llm = ChatBedrock( # (Comentado) Config DeepSeek V3.
+# llm = ChatBedrockConverse( # (Comentado) Config DeepSeek V3.
 #     model_id="us.deepseek.v3-v1:0", # Prueba este primero # (Comentado) ID.
 #     region_name="us-east-1",        # O us-west-2 # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Args.
-#         "temperature": 0.7, # (Comentado) Temp.
-#         "max_tokens": 4096 # (Comentado) Tokens.
-#     } # (Comentado) Fin kwargs.
+#     temperature=0.7,
+#     max_tokens=4096
 # ) # (Comentado) Fin instancia.
 
-llm_llama = ChatBedrock( # Instancia Llama 4.
-    model_id="us.meta.llama4-scout-17b-instruct-v1:0",  # Nota el prefijo "us." # ID.
-    # model_id="cohere.command-r-plus-v1:0", # (Comentado) Cohere.
+llm_llama = ChatBedrockConverse(
+    model_id="us.meta.llama4-scout-17b-instruct-v1:0",
+    region_name="us-east-1",
+    temperature=0.1,
+    max_tokens=2048,
+    top_p=0.9
+)
+
+
+llm_maverick = ChatBedrockConverse( # Config Llama 4 Maverick.
+    model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # ID.
     region_name="us-east-1", # Región.
-    model_kwargs={ # Args.
-        "temperature": 0.5, # Temp.
-        "max_tokens": 2048, # Tokens.
-        "top_p": 0.9, # Top P.
-    } # Fin kwargs.
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9
 ) # Fin instancia.
 
-
-# llm = ChatBedrock( # (Comentado) Config Llama 4 Maverick.
-#     model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # (Comentado) ID.
-#     region_name="us-east-1", # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Args.
-#         "temperature": 0.5, # (Comentado) Temp.
-#         "max_tokens": 2048, # (Comentado) Tokens.
-#         "top_p": 0.9, # (Comentado) Top P.
-#     } # (Comentado) Fin kwargs.
-# ) # (Comentado) Fin instancia.
-
-llm_nova = ChatBedrock( # Instancia Nova Lite.
-    model_id="amazon.nova-lite-v1:0",  # Nota el prefijo "us." # ID.
-    region_name="us-east-1", # Región.
-    model_kwargs={ # Args.
-        "temperature": 0.5, # Temp.
-        "max_tokens": 2048, # Tokens.
-        "top_p": 0.9, # Top P.
-    } # Fin kwargs.
-) # Fin instancia.
+llm_nova = ChatBedrockConverse(
+    model_id="amazon.nova-lite-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9
+)
 
 def init_mongodb(): # Función inicialización Mongo.
     """
@@ -345,7 +334,7 @@ def main(): # Función main.
     ] # Fin lista.
     
     # llm = ChatOpenAI(openai_api_key=key_param.openai_api_key, temperature=0, model="gpt-4o") # (Comentado) LLM.
-    llm = llm_nova # Asignación LLM seleccionado (usando llm_nova como default).
+    llm = llm_maverick # Asignación LLM seleccionado (usando llm_nova como default).
 
     prompt = ChatPromptTemplate.from_messages( # Plantilla prompt.
         [ # Mensajes.

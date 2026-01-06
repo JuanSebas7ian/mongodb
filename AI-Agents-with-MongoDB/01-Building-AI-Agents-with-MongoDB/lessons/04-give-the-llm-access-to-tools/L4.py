@@ -13,7 +13,7 @@ from typing import List # Importa tipado List.
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder # Importa componentes para prompts de chat.
 # import voyageai # (Comentado) Importa VoyageAI.
 import os, getpass # Importa os y getpass.
-from langchain_aws import ChatBedrock # Importa cliente Bedrock.
+from langchain_aws import ChatBedrockConverse # Importa cliente Bedrock.
 import boto3 # Importa SDK AWS.
 import json # Importa manejo de JSON.
 
@@ -23,57 +23,49 @@ def _set_env(var: str): # Función auxiliar set_env.
 
 # 1. CONFIGURACIÓN PARA DEEPSEEK-R1 (Razonamiento Complejo) # Configuración DeepSeek.
 # Ideal para agentes que necesitan planificar pasos lógicos. # Descripción.
-llm_ds = ChatBedrock( # Inicializa ChatBedrock DeepSeek.
-    model_id="us.deepseek.r1-v1:0",  # ID oficial validado # ID modelo.
+llm_ds = ChatBedrockConverse(
+    model_id="us.deepseek.r1-v1:0",  # ID oficial validado
+    region_name="us-east-1",
+    temperature=0.6,
+    max_tokens=8192,
+    top_p=0.95
+)
+
+
+llm_ds_v3 = ChatBedrockConverse( # Config alternativa DeepSeek V3.
+    model_id="us.deepseek.v3-v1:0", # Prueba este primero # ID.
+    region_name="us-east-1",        # O us-west-2 # Región.
+    temperature=0.7,
+    max_tokens=4096
+) # Fin llm.
+
+llm_llama = ChatBedrockConverse(
+    model_id="us.meta.llama4-scout-17b-instruct-v1:0", # Asegúrate que este ID sea real en tu cuenta
+    region_name="us-east-1",
+    
+    # Pasa los parámetros DIRECTAMENTE aquí:
+    temperature=0.1,   # Nota: Llama suele preferir 0.1 en vez de 0.0 absoluto para tools
+    max_tokens=2048,
+    top_p=0.9
+    # No uses model_kwargs para estos parámetros estándar
+)
+
+
+llm_maverick = ChatBedrockConverse( # Config Llama 4 Maverick.
+    model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # ID.
     region_name="us-east-1", # Región.
-    model_kwargs={ # Argumentos.
-        "temperature": 0.6, # DeepSeek recomienda 0.6 para razonamiento # Temp.
-        "max_tokens": 8192,  # Recomendado para no degradar calidad del CoT # Tokens max.
-        "top_p": 0.95, # Top-P.
-    } # Fin kwargs.
-) # Fin inicialización.
+    temperature=0.0,
+    max_tokens=2048,
+    top_p=0.9
+) # (Comentado) Fin.
 
-
-# llm = ChatBedrock( # (Comentado) Config alternativa DeepSeek V3.
-#     model_id="us.deepseek.v3-v1:0", # Prueba este primero # (Comentado) ID.
-#     region_name="us-east-1",        # O us-west-2 # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Argumentos.
-#         "temperature": 0.7, # (Comentado) Temp.
-#         "max_tokens": 4096 # (Comentado) Tokens.
-#     } # (Comentado) Fin kwargs.
-# ) # (Comentado) Fin llm.
-
-llm_llama = ChatBedrock( # Inicializa ChatBedrock Llama 4.
-    model_id="us.meta.llama4-scout-17b-instruct-v1:0",  # Nota el prefijo "us." # ID Llama 4 Scout.
-    # model_id="cohere.command-r-plus-v1:0", # (Comentado) Cohere alternative.
-    region_name="us-east-1", # Región AWS.
-    model_kwargs={ # Argumentos.
-        "temperature": 0.5, # Temperatura.
-        "max_tokens": 2048, # Max tokens.
-        "top_p": 0.9, # Top P.
-    } # Fin kwargs.
-) # Fin llm_llama.
-
-
-# llm = ChatBedrock( # (Comentado) Config Llama 4 Maverick.
-#     model_id="us.meta.llama4-maverick-17b-instruct-v1:0",  # Nota el prefijo "us." # (Comentado) ID.
-#     region_name="us-east-1", # (Comentado) Región.
-#     model_kwargs={ # (Comentado) Args.
-#         "temperature": 0.5, # (Comentado) Temp.
-#         "max_tokens": 2048, # (Comentado) Tokens.
-#         "top_p": 0.9, # (Comentado) Top P.
-#     } # (Comentado) Fin kwargs.
-# ) # (Comentado) Fin.
-
-llm_nova = ChatBedrock( # Inicializa ChatBedrock Nova Lite.
-    model_id="amazon.nova-lite-v1:0",  # Nota el prefijo "us." # ID Nova Lite.
-    region_name="us-east-1", # Región AWS.
-    model_kwargs={ # Argumentos.
-        "temperature": 0.5, # Temperatura.
-        "max_tokens": 2048, # Max tokens.
-        "top_p": 0.9, # Top P.
-    } # Fin kwargs.
-) # Fin llm_nova.
+llm_nova = ChatBedrockConverse(
+    model_id="amazon.nova-lite-v1:0",
+    region_name="us-east-1",
+    temperature=0.5,
+    max_tokens=2048,
+    top_p=0.9
+)
 
 def init_mongodb(): # Función inicialización MongoDB.
     """
@@ -228,8 +220,8 @@ def main(): # Función main.
     
     # llm = ChatOpenAI(openai_api_key=key_param.openai_api_key, temperature=0, model="gpt-4o") # (Comentado) LLM OpenAI.
     
-    # Se debe definir qué LLM usar aquí, usaré llm_nova como default por consistencia con L2.py modificado
-    llm = llm_nova # Asigna el modelo Nova Lite a la variable llm para usar en el resto de la función.
+    # Se debe definir qué LLM usar aquí, usaré llm_llama como solicitó el usuario
+    llm = llm_llama # Asigna el modelo Llama 4 a la variable llm.
 
     prompt = ChatPromptTemplate.from_messages( # Crea plantilla de prompt.
         [ # Lista mensajes.
@@ -252,8 +244,12 @@ def main(): # Función main.
     
     llm_with_tools = prompt | bind_tools # Crea cadena prompt -> llm con herramientas.
     
-    tool_call_check = llm_with_tools.invoke(["What are some best practices for data backups in MongoDB?"]).tool_calls # Invoca cadena para verificar llamada a herramientas.
+    tool_call_check_1 = llm_with_tools.invoke(["What are some best practices for data backups in MongoDB?"]).tool_calls # Invoca cadena para verificar llamada a herramientas.
     print("Tool call check:") # Imprime etiqueta.
-    print(tool_call_check) # Imprime resultado de llamada.
+    print(tool_call_check_1) # Imprime resultado de llamada.
+
+    tool_call_check_2 = llm_with_tools.invoke(["Give me a summary of the page titled Create a MongoDB Deployment."]).tool_calls # Invoca cadena para verificar llamada a herramientas.
+    print("Tool call check:") # Imprime etiqueta.
+    print(tool_call_check_2) # Imprime resultado de llamada.
 
 main() # Ejecuta main.
